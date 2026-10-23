@@ -3,6 +3,7 @@ import DashboardPage from "@/pages/DashboardPage";
 import AnalyticsPage from "@/pages/AnalyticsPage";
 import MarketsPage from "@/pages/MarketsPage";
 import TradesPage from "@/pages/TradesPage";
+import DataPage from "@/pages/DataPage";
 import NotFoundPage from "@/pages/NotFoundPage";
 import { AppLayout } from "@/components/layout/AppLayout";
 
@@ -14,6 +15,7 @@ export const router = createBrowserRouter([
             { path: "analytics", element: <AnalyticsPage /> },
             { path: "markets", element: <MarketsPage /> },
             { path: "trades", element: <TradesPage /> },
+            { path: "data", element: <DataPage /> },
         ],
     },
     {

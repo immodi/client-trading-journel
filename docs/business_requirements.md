@@ -295,6 +295,36 @@ time.
 
 ---
 
+## 5.5 Data Backup and Restore (Implemented)
+
+The system shall let users safeguard the whole local journal and move it between
+browsers:
+
+* **Backup** downloads every market and trade, including identifiers and
+  timestamps, as one pretty-printed JSON file named
+  `trading-journal-backup-YYYY-MM-DD.json`.
+* **Restore** reads a backup file, shows its export date, market count, and
+  trade count, and then replaces the current journal after confirmation.
+* Backups are distinct from broker trade imports: each trade export adds rows to
+  one market, while a backup restores the entire journal. A file in the wrong
+  format shall be rejected with a message pointing to the appropriate import.
+
+Rules:
+
+* A backup file declares its format and version. Files from an unsupported or
+  newer version shall be rejected.
+* Every market and trade shall be validated before any write, including unique
+  identifiers, case-insensitive unique market names, valid currencies and trade
+  values, and trade references to markets present in the backup.
+* Restoring is a single transaction that clears and repopulates markets and
+  trades together; a failure shall leave the existing journal untouched.
+* Derived commission and profit/loss are recomputed from each trade's inputs on
+  restore.
+* Backup files contain journal data only, not browser preferences such as the
+  theme or last opened market.
+
+---
+
 ## 5.5 Search, Filtering & Sorting (Implemented)
 
 Users shall be able to:
@@ -370,6 +400,16 @@ searchable and filterable.
 5. Confirm the import and review the updated dashboard and analytics
    statistics.
 
+## Whole-Journal Backup and Restore (Implemented)
+
+1. Open the **Data** page.
+2. Choose **Export backup** to download every market and trade as one `.json`
+   file.
+3. To restore, choose **Restore from backup**, select a backup file, and review
+   its export date, market count, and trade count.
+4. Confirm the replacement. The current journal is replaced atomically with the
+   backup's contents.
+
 ---
 
 # 7. Non-Functional Requirements
@@ -386,6 +426,8 @@ The application shall:
 * **[Implemented]** Be responsive on desktop and tablet devices.
 * **[Implemented]** Be deployable as static files behind any web server.
 * **[Implemented]** Import JSON exports of up to 5,000 trades per batch.
+* **[Implemented]** Export and restore the entire journal as one versioned JSON
+  backup file, validated before any data is replaced.
 * **[Implemented]** Validate all input at the data layer, not only in forms.
 * **[Implemented]** Keep tabs consistent when the journal changes elsewhere.
 * **[Implemented]** Provide light, dark, and system themes.
@@ -410,6 +452,7 @@ behavior rather than implying a server-side backup exists.
 | Manual trade entry | Implemented |
 | Trade journal (CRUD) | Implemented |
 | JSON trade import | Implemented |
+| Whole-journal backup & restore | Implemented |
 | Client-side profit/loss & commission | Implemented |
 | Dashboard & performance statistics | Implemented |
 | Equity curve | Implemented |

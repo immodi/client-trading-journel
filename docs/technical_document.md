@@ -149,6 +149,7 @@ TradingJournal/
 ├── frontend/
 │   ├── src/
 │   │   ├── db/
+│   │   │   ├── backup.ts(+test)
 │   │   │   ├── changeNotifications.ts
 │   │   │   ├── connection.ts
 │   │   │   ├── markets.ts
@@ -156,12 +157,15 @@ TradingJournal/
 │   │   │   ├── trades.ts
 │   │   │   └── journal.test.ts
 │   │   ├── hooks/
+│   │   │   ├── useBackup.ts
+│   │   │   ├── useMarketSelection.ts
 │   │   │   ├── useMarkets.ts
 │   │   │   ├── useTheme.ts
 │   │   │   └── useTrades.ts
 │   │   ├── lib/
 │   │   │   ├── analytics.ts(+test)
 │   │   │   ├── analyticsMetrics.test.ts
+│   │   │   ├── backup.ts(+test)
 │   │   │   ├── breakdowns.ts(+test)
 │   │   │   ├── timeAnalytics.ts(+test)
 │   │   │   ├── datetime.ts
@@ -170,8 +174,8 @@ TradingJournal/
 │   │   │   ├── tradeImport.ts(+test)
 │   │   │   ├── tradeMath.ts(+test)
 │   │   │   └── validation.ts(+test)
-│   │   ├── components/   layout, dashboard, analytics, markets, trades, theme, ui
-│   │   ├── pages/        Dashboard, Analytics, Markets, Trades, NotFound
+│   │   ├── components/   layout, dashboard, analytics, markets, trades, data, theme, ui
+│   │   ├── pages/        Dashboard, Analytics, Markets, Trades, Data, NotFound
 │   │   ├── router/       createBrowserRouter route table
 │   │   ├── types/        shared models
 │   │   ├── main.tsx
@@ -300,6 +304,21 @@ opening the IndexedDB transaction. If any row fails, nothing is written. A valid
 batch is added with `Promise.all(records.map(tx.store.add))` followed by
 `tx.done`, so the transaction commits as a unit.
 
+## Backup operations (`src/db/backup.ts`)
+
+| Function | Behaviour |
+| --- | --- |
+| `readBackup()` | Reads all markets and trades and returns a versioned backup document |
+| `restoreBackup(document)` | Clears and repopulates both stores in one transaction, preserving record ids |
+
+`src/lib/backup.ts` owns the file format and validation: the
+`trading-journal-backup` marker, a version number, the export timestamp, and the
+market/trade arrays. `parseBackup()` checks every record before the data layer
+touches IndexedDB, rejects duplicate ids or market names, verifies that each
+trade's market is present, and recomputes commission and profit/loss from the
+trade inputs. Backups are separate from broker trade imports handled by
+`tradeImport.ts`.
+
 ## Errors
 
 `src/lib/errors.ts` defines `AppError` for messages that are safe to show in the
@@ -375,6 +394,7 @@ fields, so values in different currencies can never be added together.
 | `/analytics` | Analytics |
 | `/markets` | Markets |
 | `/trades` | Trades |
+| `/data` | Data (backup and restore) |
 | `*` | Not found |
 
 All routes render inside `AppLayout` (sidebar navigation, local-only indicator,
@@ -386,6 +406,7 @@ theme toggle). There is no login route, auth provider, or route guard.
   `["markets"]` and `["trades"]`.
 * Mutations invalidate `["trades"]` and `["markets"]` as appropriate. Market
   mutations also invalidate trades because trades join market name/currency.
+* Restoring a backup replaces both stores, so it invalidates every query.
 * `subscribeToDataChanges()` in `main.tsx` invalidates all queries when another
   tab writes.
 * `staleTime` is 30 seconds, `refetchOnWindowFocus` is disabled, and queries
@@ -407,8 +428,10 @@ theme toggle). There is no login route, auth provider, or route guard.
   rolling 20/50-trade metrics, consistency and best/worst periods, weekday and
   entry-hour P/L bars, and a monthly P/L heatmap.
 * **Markets** — table with trade counts, create/edit dialogs, and guarded delete.
-* **Trades** — filters, sortable table, create/edit dialog, import dialog, and
-  guarded delete.
+* **Trades** — filters, sortable table, create/edit dialog, broker-export import
+  dialog, and guarded delete.
+* **Data** — exports the whole journal as a JSON backup and restores it through a
+  validated, destructive-replace confirmation dialog.
 * **Not Found** — static fallback.
 
 ## Analytics
@@ -500,6 +523,8 @@ live OS changes through `matchMedia`.
 | `src/lib/tradeMath.test.ts` | Long/short P/L, commission, rounding |
 | `src/lib/validation.test.ts` | Market, trade, and import rules |
 | `src/db/journal.test.ts` | Real IndexedDB schema via `fake-indexeddb`: market CRUD, duplicate names, guarded deletion, trade derivation, updates, joins, import atomicity |
+| `src/db/backup.test.ts` | Real IndexedDB backup/restore round trip, id preservation, and whole-journal replacement |
+| `src/lib/backup.test.ts` | Backup format, version and referential validation, duplicate detection, and derived-value recomputation |
 
 The data-layer tests exercise actual transactions and auto-increment keys against
 a fresh database per test (`deleteJournalDatabase()` in `beforeEach`).
@@ -604,7 +629,9 @@ IndexedDB is durable across page reloads and browser restarts under normal
 conditions. At startup the app asks for persistent storage via
 `navigator.storage.persist()` where supported (best effort; the browser decides).
 Browsers may still evict data when storage pressure is extreme, and users can
-clear site data at any time. There is no cloud copy in this release.
+clear site data at any time. There is no cloud copy in this release. The Data
+page lets users keep their own whole-journal JSON backup outside the browser,
+but the app never uploads that file.
 
 ## Quotas
 

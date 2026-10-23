@@ -2,6 +2,7 @@ import { NavLink, Outlet } from "react-router-dom";
 import {
     ChartNoAxesCombined,
     Database,
+    DatabaseBackup,
     Landmark,
     LayoutDashboard,
     LineChart,
@@ -15,6 +16,7 @@ const NAV_ITEMS = [
     { to: "/analytics", label: "Analytics", icon: ChartNoAxesCombined, end: false },
     { to: "/markets", label: "Markets", icon: Landmark, end: false },
     { to: "/trades", label: "Trades", icon: ListOrdered, end: false },
+    { to: "/data", label: "Data", icon: DatabaseBackup, end: false },
 ];
 
 export function AppLayout() {

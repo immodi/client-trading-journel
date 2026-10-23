@@ -37,6 +37,10 @@ leaves the device.
   `commissionPerUnit × quantity`. The UI never supplies derived values.
 - **Trade import** — bulk-add trades from a `TradeReplay`-style JSON export
   under any market. The whole file is validated before a single row is written.
+- **Whole-journal backup and restore** — export every market and trade to one
+  JSON file, or replace the local journal from a previous backup. This is
+  separate from broker trade imports, and a backup is fully validated before
+  anything is replaced.
 - **Dashboard** — net P/L, win rate, profit factor, average win, average loss,
   total trades, commission, an SVG equity curve, and recent trades.
 - **Analytics** — expectancy, median trade, payoff ratio, breakeven win rate,
