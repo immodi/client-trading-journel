@@ -1,0 +1,14 @@
+name: trading-journal
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: trading-journal
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+
+# There is no database volume: every visitor's journal is stored in their own
+# browser (IndexedDB), not in the container.

@@ -1,0 +1,63 @@
+@startuml
+hide circle
+skinparam linetype ortho
+skinparam shadowing false
+
+title Trading Journal — Local IndexedDB Schema
+
+entity "markets" as Market {
+  * id : number <<PK, auto-increment>>
+  --
+  name : string (unique, max 100)
+  currency : string(3) ISO 4217
+  createdAt : ISO timestamp
+  updatedAt : ISO timestamp
+}
+
+entity "trades" as Trade {
+  * id : number <<PK, auto-increment>>
+  --
+  marketId : number <<FK → markets.id>>
+  --
+  instrument : string(20)
+  direction : 0 = Long | 1 = Short
+  entryPrice : number
+  exitPrice : number
+  quantity : integer
+  pointValue : number
+  entryTime : ISO timestamp
+  exitTime : ISO timestamp
+  commissionPerUnit : number
+  commission : number <<derived>>
+  profitLoss : number <<derived>>
+  createdAt : ISO timestamp
+  updatedAt : ISO timestamp
+}
+
+Market "1" ||--o{ "0..*" Trade : groups
+
+legend right
+  == Storage ==
+  Browser IndexedDB database: trading-journal
+  Object stores: markets, trades
+  Indexes: trades.by-market, trades.by-exit-time
+  No server, no accounts, no user ownership.
+
+  == Rules ==
+  Market names are unique (case-insensitive).
+  Currency is a 3-letter ISO 4217 code, stored uppercase.
+  A trade always belongs to an existing market and
+  inherits its currency (joined on read).
+  A market that still has trades cannot be deleted.
+
+  CommissionPerUnit = CommissionPerSide × 2
+  Commission        = CommissionPerUnit × Quantity
+  ProfitLoss        = (Exit − Entry) × Quantity × PointValue
+                      − Commission        [Entry − Exit for Short]
+
+  == Not yet modelled ==
+  TradeNote, Screenshot, Tag, TradeTag and
+  ImportHistory are planned.
+endlegend
+
+@enduml

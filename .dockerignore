@@ -1,0 +1,12 @@
+.git
+.gitignore
+.github
+node_modules
+**/node_modules
+frontend/dist
+frontend/.vite
+docs
+README.md
+Dockerfile
+docker-compose.yml
+.dockerignore

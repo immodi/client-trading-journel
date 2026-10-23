@@ -1,0 +1,117 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="660" viewBox="0 0 960 660" role="img" aria-labelledby="title desc">
+  <title id="title">Trading Journal local IndexedDB schema</title>
+  <desc id="desc">Two object stores: markets and trades. One market has many trades.</desc>
+
+  <rect width="960" height="660" fill="#ffffff" rx="12"/>
+
+  <text x="40" y="42" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif" font-size="22" font-weight="700" fill="#111827">Trading Journal — Local IndexedDB Schema</text>
+  <text x="40" y="66" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif" font-size="13" fill="#6b7280">Database: trading-journal · No server · No accounts · No user ownership</text>
+
+  <!-- markets table -->
+  <g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">
+    <rect x="40" y="100" width="330" height="248" rx="8" fill="#f9fafb" stroke="#d1d5db"/>
+    <rect x="40" y="100" width="330" height="38" rx="8" fill="#1f2937"/>
+    <rect x="40" y="130" width="330" height="8" fill="#1f2937"/>
+    <text x="60" y="125" font-size="15" font-weight="700" fill="#ffffff">markets</text>
+    <text x="352" y="123" font-size="11" fill="#d1d5db" text-anchor="end">object store</text>
+
+    <text x="60" y="166" font-size="12.5" fill="#111827" font-weight="700">id</text>
+    <text x="150" y="166" font-size="12.5" fill="#6b7280">number · PK · autoIncrement</text>
+
+    <text x="60" y="192" font-size="12.5" fill="#111827">name</text>
+    <text x="150" y="192" font-size="12.5" fill="#6b7280">string · unique · max 100</text>
+
+    <text x="60" y="218" font-size="12.5" fill="#111827">currency</text>
+    <text x="150" y="218" font-size="12.5" fill="#6b7280">string(3) · ISO 4217</text>
+
+    <text x="60" y="244" font-size="12.5" fill="#111827">createdAt</text>
+    <text x="150" y="244" font-size="12.5" fill="#6b7280">ISO timestamp (UTC)</text>
+
+    <text x="60" y="270" font-size="12.5" fill="#111827">updatedAt</text>
+    <text x="150" y="270" font-size="12.5" fill="#6b7280">ISO timestamp (UTC)</text>
+
+    <text x="60" y="316" font-size="11.5" fill="#9ca3af">One market → many trades</text>
+    <text x="60" y="334" font-size="11.5" fill="#9ca3af">Deletion refused while trades exist</text>
+  </g>
+
+  <!-- trades table -->
+  <g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">
+    <rect x="560" y="100" width="360" height="472" rx="8" fill="#f9fafb" stroke="#d1d5db"/>
+    <rect x="560" y="100" width="360" height="38" rx="8" fill="#1f2937"/>
+    <rect x="560" y="130" width="360" height="8" fill="#1f2937"/>
+    <text x="580" y="125" font-size="15" font-weight="700" fill="#ffffff">trades</text>
+    <text x="902" y="123" font-size="11" fill="#d1d5db" text-anchor="end">object store</text>
+
+    <text x="580" y="166" font-size="12.5" fill="#111827" font-weight="700">id</text>
+    <text x="710" y="166" font-size="12.5" fill="#6b7280">number · PK · autoIncrement</text>
+
+    <text x="580" y="190" font-size="12.5" fill="#111827" font-weight="700">marketId</text>
+    <text x="710" y="190" font-size="12.5" fill="#6b7280">number · FK → markets.id</text>
+
+    <line x1="580" y1="202" x2="900" y2="202" stroke="#e5e7eb"/>
+
+    <text x="580" y="224" font-size="12.5" fill="#111827">instrument</text>
+    <text x="710" y="224" font-size="12.5" fill="#6b7280">string(20)</text>
+
+    <text x="580" y="248" font-size="12.5" fill="#111827">direction</text>
+    <text x="710" y="248" font-size="12.5" fill="#6b7280">0 = Long · 1 = Short</text>
+
+    <text x="580" y="272" font-size="12.5" fill="#111827">entryPrice</text>
+    <text x="710" y="272" font-size="12.5" fill="#6b7280">number</text>
+
+    <text x="580" y="296" font-size="12.5" fill="#111827">exitPrice</text>
+    <text x="710" y="296" font-size="12.5" fill="#6b7280">number</text>
+
+    <text x="580" y="320" font-size="12.5" fill="#111827">quantity</text>
+    <text x="710" y="320" font-size="12.5" fill="#6b7280">integer &gt; 0</text>
+
+    <text x="580" y="344" font-size="12.5" fill="#111827">pointValue</text>
+    <text x="710" y="344" font-size="12.5" fill="#6b7280">number &gt; 0</text>
+
+    <text x="580" y="368" font-size="12.5" fill="#111827">entryTime</text>
+    <text x="710" y="368" font-size="12.5" fill="#6b7280">ISO timestamp (UTC)</text>
+
+    <text x="580" y="392" font-size="12.5" fill="#111827">exitTime</text>
+    <text x="710" y="392" font-size="12.5" fill="#6b7280">ISO timestamp (UTC)</text>
+
+    <text x="580" y="416" font-size="12.5" fill="#111827">commissionPerUnit</text>
+    <text x="710" y="416" font-size="12.5" fill="#6b7280">number · perSide × 2</text>
+
+    <text x="580" y="440" font-size="12.5" fill="#111827">commission</text>
+    <text x="710" y="440" font-size="12.5" fill="#7c3aed">number · derived, stored</text>
+
+    <text x="580" y="464" font-size="12.5" fill="#111827">profitLoss</text>
+    <text x="710" y="464" font-size="12.5" fill="#7c3aed">number · derived, stored</text>
+
+    <text x="580" y="488" font-size="12.5" fill="#111827">createdAt</text>
+    <text x="710" y="488" font-size="12.5" fill="#6b7280">ISO timestamp (UTC)</text>
+
+    <text x="580" y="512" font-size="12.5" fill="#111827">updatedAt</text>
+    <text x="710" y="512" font-size="12.5" fill="#6b7280">ISO timestamp (UTC)</text>
+
+    <text x="580" y="548" font-size="11.5" fill="#9ca3af">Indexes: by-market (marketId), by-exit-time (exitTime)</text>
+  </g>
+
+  <!-- relationship -->
+  <g>
+    <line x1="370" y1="224" x2="560" y2="224" stroke="#6b7280" stroke-width="2"/>
+    <circle cx="370" cy="224" r="4" fill="#6b7280"/>
+    <path d="M548 216 L560 224 L548 232" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="465" y="210" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12" font-weight="600" fill="#374151" text-anchor="middle">1 : many</text>
+    <text x="465" y="246" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11" fill="#6b7280" text-anchor="middle">groups</text>
+  </g>
+
+  <!-- rules panel -->
+  <g font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif">
+    <rect x="40" y="392" width="480" height="180" rx="8" fill="#f3f4f6" stroke="#e5e7eb"/>
+    <text x="60" y="418" font-size="13" font-weight="700" fill="#111827">Derived values &amp; rules</text>
+
+    <text x="60" y="444" font-size="12" fill="#374151">commissionPerUnit = commissionPerSide × 2</text>
+    <text x="60" y="464" font-size="12" fill="#374151">commission = commissionPerUnit × quantity</text>
+    <text x="60" y="484" font-size="12" fill="#374151">profitLoss = priceMove × pointValue − commission</text>
+    <text x="60" y="504" font-size="12" fill="#6b7280">Long: exit − entry   ·   Short: entry − exit</text>
+
+    <text x="60" y="532" font-size="12" fill="#374151">• Trades inherit their market's currency on read.</text>
+    <text x="60" y="552" font-size="12" fill="#374151">• Market names are unique (case-insensitive).</text>
+  </g>
+</svg>
