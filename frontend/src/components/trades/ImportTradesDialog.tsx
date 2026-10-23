@@ -1,10 +1,20 @@
 import { useMemo, useState, type ChangeEvent, type FormEvent } from "react";
 import { Loader2, Upload } from "lucide-react";
-import type { ImportTradeItem } from "@/types/models";
-import { useImportTrades } from "@/hooks/useTrades";
+import type {
+    ImportTradeItem,
+    ImportTradeOverwrite,
+} from "@/types/models";
+import { useImportTrades, useTrades } from "@/hooks/useTrades";
 import { useMarkets } from "@/hooks/useMarkets";
 import { getErrorMessage } from "@/lib/errors";
 import { formatCurrency, formatInteger } from "@/lib/format";
+import {
+    buildImportPlan,
+    findImportConflicts,
+    type ImportConflict,
+    type ImportConflictDecision,
+    type ImportPlan,
+} from "@/lib/importConflicts";
 import { COMMISSION_SIDES_PER_ROUND_TRIP } from "@/lib/tradeMath";
 import { parseTradeExport, TradeImportError } from "@/lib/tradeImport";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -26,6 +36,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { ImportConflictDialog } from "@/components/trades/ImportConflictDialog";
 
 interface ImportTradesDialogProps {
     open: boolean;
@@ -70,11 +81,16 @@ const SCHEMA_EXAMPLE = `{
 export function ImportTradesDialog({ open, onOpenChange }: ImportTradesDialogProps) {
     const importTrades = useImportTrades();
     const { data: markets = [] } = useMarkets();
+    const {
+        data: existingTrades = [],
+        isLoading: existingTradesLoading,
+    } = useTrades();
 
     const [marketId, setMarketId] = useState("");
     const [parsed, setParsed] = useState<ParsedFile | null>(null);
     const [fileError, setFileError] = useState("");
     const [error, setError] = useState("");
+    const [conflicts, setConflicts] = useState<ImportConflict[]>([]);
 
     const marketItems = useMemo(
         () =>
@@ -109,6 +125,7 @@ export function ImportTradesDialog({ open, onOpenChange }: ImportTradesDialogPro
         setError("");
         setFileError("");
         setParsed(null);
+        setConflicts([]);
 
         if (!file) return;
 
@@ -140,6 +157,30 @@ export function ImportTradesDialog({ open, onOpenChange }: ImportTradesDialogPro
         }
     }
 
+    async function runImport(
+        trades: ImportTradeItem[],
+        overwrites: ImportTradeOverwrite[]
+    ) {
+        if (!parsed) return;
+
+        const market = Number(effectiveMarketId);
+
+        try {
+            await importTrades.mutateAsync({
+                marketId: market,
+                pointValue: parsed.pointValue,
+                commissionPerSide: parsed.commissionPerSide,
+                trades,
+                overwrites,
+            });
+            setConflicts([]);
+            onOpenChange(false);
+        } catch (submitError) {
+            setConflicts([]);
+            setError(getErrorMessage(submitError));
+        }
+    }
+
     async function handleSubmit(event: FormEvent) {
         event.preventDefault();
 
@@ -153,149 +194,190 @@ export function ImportTradesDialog({ open, onOpenChange }: ImportTradesDialogPro
             setError("Select a market to import the trades into.");
             return;
         }
+        if (existingTradesLoading) {
+            setError("Wait for the existing trades to load before importing.");
+            return;
+        }
+
+        setError("");
+
+        const detected = findImportConflicts(parsed.trades, existingTrades);
+
+        if (detected.length > 0) {
+            setConflicts(detected);
+            return;
+        }
+
+        await runImport(parsed.trades, []);
+    }
+
+    async function handleResolve(
+        decisions: Record<number, ImportConflictDecision>
+    ) {
+        if (!parsed) return;
+
+        let plan: ImportPlan;
 
         try {
-            await importTrades.mutateAsync({
-                marketId: market,
-                pointValue: parsed.pointValue,
-                commissionPerSide: parsed.commissionPerSide,
-                trades: parsed.trades,
-            });
-            onOpenChange(false);
-        } catch (submitError) {
-            setError(getErrorMessage(submitError));
+            plan = buildImportPlan(parsed.trades, conflicts, decisions);
+        } catch (planError) {
+            setConflicts([]);
+            setError(getErrorMessage(planError));
+            return;
         }
+
+        await runImport(plan.trades, plan.overwrites);
     }
 
     const noMarkets = markets.length === 0;
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-lg">
-                <DialogHeader>
-                    <DialogTitle>Import trades</DialogTitle>
-                    <DialogDescription>
-                        Bring trades in from a JSON export. They are added under the market
-                        you choose here.
-                    </DialogDescription>
-                </DialogHeader>
+        <>
+            <Dialog
+                open={open && conflicts.length === 0}
+                onOpenChange={onOpenChange}
+            >
+                <DialogContent className="sm:max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle>Import trades</DialogTitle>
+                        <DialogDescription>
+                            Bring trades in from a JSON export. They are added under the market
+                            you choose here.
+                        </DialogDescription>
+                    </DialogHeader>
 
-                <form onSubmit={handleSubmit} className="grid gap-4">
-                    {noMarkets && (
-                        <Alert>
-                            <AlertDescription>
-                                You need a market before importing trades. Create one from the
-                                Markets page.
-                            </AlertDescription>
-                        </Alert>
-                    )}
-
-                    <div className="grid gap-2">
-                        <Label htmlFor="importMarket">Market</Label>
-                        <Select
-                            items={marketItems}
-                            value={effectiveMarketId}
-                            onValueChange={(value) => setMarketId(value as string)}
-                        >
-                            <SelectTrigger id="importMarket" className="w-full">
-                                <SelectValue placeholder="Select a market" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {markets.map((market) => (
-                                    <SelectItem key={market.id} value={String(market.id)}>
-                                        {market.name} ({market.currency})
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                        <p className="text-xs text-muted-foreground">
-                            Every imported trade is filed under this market and inherits its
-                            currency.
-                        </p>
-                    </div>
-
-                    <div className="grid gap-2">
-                        <Label htmlFor="importFile">Export file (.json)</Label>
-                        <Input
-                            id="importFile"
-                            type="file"
-                            accept="application/json,.json"
-                            onChange={handleFileChange}
-                        />
-                        {fileError && (
-                            <p className="text-xs text-destructive">{fileError}</p>
+                    <form onSubmit={handleSubmit} className="grid gap-4">
+                        {noMarkets && (
+                            <Alert>
+                                <AlertDescription>
+                                    You need a market before importing trades. Create one from the
+                                    Markets page.
+                                </AlertDescription>
+                            </Alert>
                         )}
 
-                        <details open className="group rounded-lg border bg-muted/40 text-xs">
-                            <summary className="cursor-pointer list-none px-3 py-2 font-medium text-muted-foreground select-none [&::-webkit-details-marker]:hidden">
-                                Expected JSON format
-                            </summary>
-                            <pre className="max-h-48 overflow-auto border-t px-3 py-2 text-[11px] leading-relaxed">
-                                <code>{SCHEMA_EXAMPLE}</code>
-                            </pre>
-                        </details>
-                    </div>
-
-                    {parsed && (
-                        <div className="grid gap-1 rounded-lg border bg-muted/40 p-3 text-sm">
-                            <p className="flex items-center gap-2 font-medium">
-                                <Upload className="size-4 text-muted-foreground" />
-                                {parsed.fileName}
+                        <div className="grid gap-2">
+                            <Label htmlFor="importMarket">Market</Label>
+                            <Select
+                                items={marketItems}
+                                value={effectiveMarketId}
+                                onValueChange={(value) => setMarketId(value as string)}
+                            >
+                                <SelectTrigger id="importMarket" className="w-full">
+                                    <SelectValue placeholder="Select a market" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {markets.map((market) => (
+                                        <SelectItem key={market.id} value={String(market.id)}>
+                                            {market.name} ({market.currency})
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <p className="text-xs text-muted-foreground">
+                                Every imported trade is filed under this market and inherits its
+                                currency.
                             </p>
-                            <div className="flex justify-between gap-4 text-muted-foreground">
-                                <span>Instrument</span>
-                                <span className="font-medium text-foreground">
-                                    {parsed.instrument}
-                                </span>
-                            </div>
-                            <div className="flex justify-between gap-4 text-muted-foreground">
-                                <span>Point value</span>
-                                <span className="font-medium text-foreground">
-                                    {parsed.pointValue}
-                                </span>
-                            </div>
-                            <div className="flex justify-between gap-4 text-muted-foreground">
-                                <span>Trades</span>
-                                <span className="font-medium text-foreground">
-                                    {formatInteger(parsed.trades.length)}
-                                </span>
-                            </div>
-                            <div className="flex justify-between gap-4 text-muted-foreground">
-                                <span>Total commission</span>
-                                <span className="font-medium text-foreground">
-                                    {formatCurrency(
-                                        totalCommission,
-                                        selectedMarket?.currency
-                                    )}
-                                </span>
-                            </div>
                         </div>
-                    )}
 
-                    {error && (
-                        <Alert variant="destructive">
-                            <AlertDescription>{error}</AlertDescription>
-                        </Alert>
-                    )}
+                        <div className="grid gap-2">
+                            <Label htmlFor="importFile">Export file (.json)</Label>
+                            <Input
+                                id="importFile"
+                                type="file"
+                                accept="application/json,.json"
+                                onChange={handleFileChange}
+                            />
+                            {fileError && (
+                                <p className="text-xs text-destructive">{fileError}</p>
+                            )}
 
-                    <DialogFooter>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => onOpenChange(false)}
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            type="submit"
-                            disabled={importTrades.isPending || noMarkets || !parsed}
-                        >
-                            {importTrades.isPending && <Loader2 className="animate-spin" />}
-                            Import trades
-                        </Button>
-                    </DialogFooter>
-                </form>
-            </DialogContent>
-        </Dialog>
+                            <details open className="group rounded-lg border bg-muted/40 text-xs">
+                                <summary className="cursor-pointer list-none px-3 py-2 font-medium text-muted-foreground select-none [&::-webkit-details-marker]:hidden">
+                                    Expected JSON format
+                                </summary>
+                                <pre className="max-h-48 overflow-auto border-t px-3 py-2 text-[11px] leading-relaxed">
+                                    <code>{SCHEMA_EXAMPLE}</code>
+                                </pre>
+                            </details>
+                        </div>
+
+                        {parsed && (
+                            <div className="grid gap-1 rounded-lg border bg-muted/40 p-3 text-sm">
+                                <p className="flex items-center gap-2 font-medium">
+                                    <Upload className="size-4 text-muted-foreground" />
+                                    {parsed.fileName}
+                                </p>
+                                <div className="flex justify-between gap-4 text-muted-foreground">
+                                    <span>Instrument</span>
+                                    <span className="font-medium text-foreground">
+                                        {parsed.instrument}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between gap-4 text-muted-foreground">
+                                    <span>Point value</span>
+                                    <span className="font-medium text-foreground">
+                                        {parsed.pointValue}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between gap-4 text-muted-foreground">
+                                    <span>Trades</span>
+                                    <span className="font-medium text-foreground">
+                                        {formatInteger(parsed.trades.length)}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between gap-4 text-muted-foreground">
+                                    <span>Total commission</span>
+                                    <span className="font-medium text-foreground">
+                                        {formatCurrency(
+                                            totalCommission,
+                                            selectedMarket?.currency
+                                        )}
+                                    </span>
+                                </div>
+                            </div>
+                        )}
+
+                        {error && (
+                            <Alert variant="destructive">
+                                <AlertDescription>{error}</AlertDescription>
+                            </Alert>
+                        )}
+
+                        <DialogFooter>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => onOpenChange(false)}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                type="submit"
+                                disabled={
+                                    importTrades.isPending ||
+                                    noMarkets ||
+                                    !parsed ||
+                                    existingTradesLoading
+                                }
+                            >
+                                {importTrades.isPending && <Loader2 className="animate-spin" />}
+                                Import trades
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
+
+            {conflicts.length > 0 && parsed && (
+                <ImportConflictDialog
+                    conflicts={conflicts}
+                    importedTrades={parsed.trades}
+                    isImporting={importTrades.isPending}
+                    onResolve={handleResolve}
+                    onCancel={() => setConflicts([])}
+                />
+            )}
+        </>
     );
 }

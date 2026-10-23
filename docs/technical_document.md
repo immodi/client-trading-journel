@@ -282,7 +282,7 @@ This avoids case-insensitive index limitations and keeps the rule explicit.
 | `createTrade(input)` | Resolves the market, validates, derives commission/P&L, inserts, returns the joined trade |
 | `updateTrade(id, input)` | Loads the record, merges partial input, resolves the (possibly new) market, validates, re-derives commission/P&L, updates `updatedAt` |
 | `deleteTrade(id)` | Ensures the record exists, then deletes it |
-| `importTrades(input)` | Resolves the market, validates batch metadata and every row, then adds all rows in one transaction |
+| `importTrades(input)` | Resolves the market, validates batch metadata and every row, rejects unresolved duplicates, then adds new rows and applies chosen overwrites in one transaction |
 
 ### Validation before writing
 
@@ -302,7 +302,19 @@ Because validation runs before canonicalization, invalid dates cannot reach
 `importTrades()` builds and validates the complete array of records **before**
 opening the IndexedDB transaction. If any row fails, nothing is written. A valid
 batch is added with `Promise.all(records.map(tx.store.add))` followed by
-`tx.done`, so the transaction commits as a unit.
+`tx.done`, so the transaction commits as a unit. Resolved overwrites use
+`tx.store.put` in the same transaction.
+
+### Import duplicates
+
+A duplicate is a trade with the same instrument, entry time, and exit time. The
+import dialog calls `findImportConflicts()` from
+`src/lib/importConflicts.ts`, which compares every parsed row against the journal
+first, then against earlier rows in the same file. When conflicts exist the UI
+opens a resolver that steps through them and offers overwrite/discard for one
+trade or all remaining trades. `buildImportPlan()` turns the decisions into the
+final add list plus journal overwrites. The data layer repeats the duplicate
+check as a guard and refuses any unresolved duplicate.
 
 ## Backup operations (`src/db/backup.ts`)
 
@@ -520,9 +532,10 @@ live OS changes through `matchMedia`.
 | `src/lib/breakdowns.test.ts` | Direction/instrument/duration breakdowns, histograms, rolling metrics |
 | `src/lib/timeAnalytics.test.ts` | Local date keys, daily/weekly/monthly grouping, consistency, best/worst periods, weekday/hour breakdowns |
 | `src/lib/tradeImport.test.ts` | Export parsing, fallbacks, invalid files/rows |
+| `src/lib/importConflicts.test.ts` | Duplicate keys, journal/file conflict detection, overwrite/discard plans |
 | `src/lib/tradeMath.test.ts` | Long/short P/L, commission, rounding |
 | `src/lib/validation.test.ts` | Market, trade, and import rules |
-| `src/db/journal.test.ts` | Real IndexedDB schema via `fake-indexeddb`: market CRUD, duplicate names, guarded deletion, trade derivation, updates, joins, import atomicity |
+| `src/db/journal.test.ts` | Real IndexedDB schema via `fake-indexeddb`: market CRUD, duplicate names, guarded deletion, trade derivation, updates, joins, import atomicity and duplicate handling |
 | `src/db/backup.test.ts` | Real IndexedDB backup/restore round trip, id preservation, and whole-journal replacement |
 | `src/lib/backup.test.ts` | Backup format, version and referential validation, duplicate detection, and derived-value recomputation |
 
@@ -673,8 +686,8 @@ the session ends. The app does not attempt to detect or special-case this mode.
   future stores (notes, screenshots, tags).
 * **Attachments** — store screenshot blobs in IndexedDB with size limits and
   object-URL lifecycle management.
-* **Duplicate detection on import** — hash/compare instrument, direction,
-  quantity, prices, and times.
+* **Duplicate detection on import** — currently compares instrument, entry time,
+  and exit time; could extend to direction, quantity, and prices.
 * **Virtualized trade table** — for journals with tens of thousands of rows.
 * **Web Worker analytics** — if aggregation grows beyond what the main thread
   handles comfortably.

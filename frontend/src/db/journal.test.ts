@@ -14,7 +14,7 @@ import {
     listTrades,
     updateTrade,
 } from "@/db/trades";
-import { Direction, type CreateTradeInput } from "@/types/models";
+import { Direction, type CreateTradeInput, type ImportTradeItem } from "@/types/models";
 
 beforeEach(async () => {
     await deleteJournalDatabase();
@@ -240,5 +240,98 @@ describe("importTrades", () => {
                 trades: [],
             })
         ).rejects.toThrow(/not found/i);
+    });
+
+    it("rejects duplicate trades inside the file", async () => {
+        const market = await createMarket({ name: "Futures", currency: "USD" });
+        const trade: ImportTradeItem = {
+            instrument: "MNQ",
+            direction: Direction.Long,
+            quantity: 1,
+            entryPrice: 100,
+            exitPrice: 110,
+            entryTime: "2026-01-01T09:30:00.000Z",
+            exitTime: "2026-01-01T10:00:00.000Z",
+        };
+
+        await expect(
+            importTrades({
+                marketId: market.id,
+                pointValue: 2,
+                commissionPerSide: 1,
+                trades: [trade, { ...trade, entryPrice: 101 }],
+            })
+        ).rejects.toThrow(/duplicate/i);
+
+        expect(await listTrades()).toEqual([]);
+    });
+
+    it("rejects a trade that duplicates one already in the journal", async () => {
+        const market = await createMarket({ name: "Futures", currency: "USD" });
+        const existing = await createTrade(tradeInput(market.id));
+
+        await expect(
+            importTrades({
+                marketId: market.id,
+                pointValue: 2,
+                commissionPerSide: 1,
+                trades: [
+                    {
+                        instrument: "mnq",
+                        direction: Direction.Long,
+                        quantity: 3,
+                        entryPrice: 100,
+                        exitPrice: 120,
+                        entryTime: "2026-01-01T09:30:00.000Z",
+                        exitTime: "2026-01-01T10:00:00.000Z",
+                    },
+                ],
+            })
+        ).rejects.toThrow(/already exists/i);
+
+        const trades = await listTrades();
+        expect(trades).toHaveLength(1);
+        expect(trades[0].id).toBe(existing.id);
+        expect(trades[0].quantity).toBe(2);
+    });
+
+    it("overwrites a journal trade when a resolution is supplied", async () => {
+        const market = await createMarket({ name: "Futures", currency: "USD" });
+        const existing = await createTrade(tradeInput(market.id));
+
+        const imported = await importTrades({
+            marketId: market.id,
+            pointValue: 2,
+            commissionPerSide: 1,
+            trades: [],
+            overwrites: [
+                {
+                    id: existing.id,
+                    trade: {
+                        instrument: "MNQ",
+                        direction: Direction.Long,
+                        quantity: 3,
+                        entryPrice: 100,
+                        exitPrice: 120,
+                        entryTime: "2026-01-01T09:30:00.000Z",
+                        exitTime: "2026-01-01T10:00:00.000Z",
+                    },
+                },
+            ],
+        });
+
+        expect(imported).toBe(1);
+
+        const trades = await listTrades();
+        expect(trades).toHaveLength(1);
+        expect(trades[0]).toMatchObject({
+            id: existing.id,
+            quantity: 3,
+            entryPrice: 100,
+            exitPrice: 120,
+            createdAt: existing.createdAt,
+            commission: 6,
+            profitLoss: 114,
+        });
     });
 });

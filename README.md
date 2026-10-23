@@ -36,7 +36,9 @@ leaves the device.
   `(exit − entry) × quantity × pointValue − commission` (inverted for shorts) and
   `commissionPerUnit × quantity`. The UI never supplies derived values.
 - **Trade import** — bulk-add trades from a `TradeReplay`-style JSON export
-  under any market. The whole file is validated before a single row is written.
+  under any market. The whole file is validated before a single row is written,
+  and duplicates (same instrument, entry time, and exit time) are resolved one
+  by one against the file and the existing journal.
 - **Whole-journal backup and restore** — export every market and trade to one
   JSON file, or replace the local journal from a previous backup. This is
   separate from broker trade imports, and a backup is fully validated before
@@ -232,7 +234,7 @@ docs/             business requirements, technical design, entity diagram
 ## Roadmap
 
 - Journal export/import (backup and device migration)
-- Import duplicate detection and additional export formats
+- Additional export formats
 - Trade notes, tags, and chart screenshots
 - R-multiple analytics (requires optional risk/stop fields)
 - MAE/MFE and slippage analytics (requires optional price fields)

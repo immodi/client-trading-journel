@@ -85,6 +85,12 @@ export interface ImportTradeItem {
     exitTime: string;
 }
 
+/** An existing journal trade that an import should replace. */
+export interface ImportTradeOverwrite {
+    id: number;
+    trade: ImportTradeItem;
+}
+
 export interface ImportTradesInput {
     /** Every imported trade is filed under this market. */
     marketId: number;
@@ -93,4 +99,6 @@ export interface ImportTradesInput {
     /** Per-side commission from the export meta; applies to every imported trade. */
     commissionPerSide: number;
     trades: ImportTradeItem[];
+    /** Existing trades the user chose to overwrite while resolving duplicates. */
+    overwrites?: ImportTradeOverwrite[];
 }

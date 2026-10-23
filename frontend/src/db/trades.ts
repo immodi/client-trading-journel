@@ -1,4 +1,5 @@
 import { AppError } from "@/lib/errors";
+import { duplicateTradeKey } from "@/lib/importConflicts";
 import {
     COMMISSION_SIDES_PER_ROUND_TRIP,
     calculateCommission,
@@ -205,18 +206,20 @@ export async function deleteTrade(id: number): Promise<void> {
 }
 
 /**
- * Bulk-adds trades under one market. Every row is validated before the first
- * write, so an invalid file never produces a partial import.
+ * Bulk-adds trades under one market and applies any user-chosen overwrites.
+ * Every row is validated and duplicate-checked before the first write, so an
+ * invalid or unresolved import never produces a partial write.
  */
 export async function importTrades(input: ImportTradesInput): Promise<number> {
     const market = await getMarketRecord(input.marketId);
+    const overwrites = input.overwrites ?? [];
 
-    if (input.trades.length === 0) return 0;
+    if (input.trades.length === 0 && overwrites.length === 0) return 0;
 
     const importError = validateImport(
         input.pointValue,
         input.commissionPerSide,
-        input.trades.length
+        input.trades.length + overwrites.length
     );
 
     if (importError) throw new AppError(importError);
@@ -226,7 +229,16 @@ export async function importTrades(input: ImportTradesInput): Promise<number> {
         input.commissionPerSide * COMMISSION_SIDES_PER_ROUND_TRIP
     );
 
-    const records = input.trades.map((trade, index) => {
+    const database = await getDatabase();
+    const existingRecords = await database.getAll("trades");
+    const existingById = new Map(
+        existingRecords.map((record) => [record.id, record])
+    );
+
+    function prepareImportRecord(
+        trade: ImportTradesInput["trades"][number],
+        prefix: string
+    ) {
         const values = prepareTradeValues(
             {
                 instrument: trade.instrument,
@@ -239,21 +251,78 @@ export async function importTrades(input: ImportTradesInput): Promise<number> {
                 exitTime: trade.exitTime,
                 commissionPerUnit,
             },
-            `Trade #${index + 1}: `
+            prefix
         );
 
         return toRecord(values, market.id, now, now);
+    }
+
+    const records = input.trades.map((trade, index) =>
+        prepareImportRecord(trade, `Trade #${index + 1}: `)
+    );
+
+    const overwriteRecords = overwrites.map((overwrite, index) => {
+        const existing = existingById.get(overwrite.id);
+
+        if (!existing) {
+            throw new AppError(
+                `Trade with id ${overwrite.id} was not found.`
+            );
+        }
+
+        return {
+            ...prepareImportRecord(
+                overwrite.trade,
+                `Overwrite #${index + 1}: `
+            ),
+            id: existing.id,
+            createdAt: existing.createdAt,
+        } satisfies TradeRecord;
     });
 
-    const database = await getDatabase();
+    // Duplicate detection is instrument + entry/exit timeframe. Overwritten
+    // trades are excluded from the journal side because they are being replaced.
+    const overwrittenIds = new Set(overwriteRecords.map((record) => record.id));
+    const existingKeys = new Set(
+        existingRecords
+            .filter((record) => !overwrittenIds.has(record.id))
+            .map(duplicateTradeKey)
+    );
+    const incomingKeys = new Set<string>();
+
+    for (const record of [...records, ...overwriteRecords]) {
+        const key = duplicateTradeKey(record);
+
+        if (incomingKeys.has(key)) {
+            throw new AppError(
+                `The import contains duplicate ${record.instrument} trades with the same entry and exit time.`
+            );
+        }
+
+        incomingKeys.add(key);
+    }
+
+    // New rows must not collide with journal trades. Overwritten trades are
+    // excluded because they are being replaced; their ids are verified above.
+    for (const record of records) {
+        if (existingKeys.has(duplicateTradeKey(record))) {
+            throw new AppError(
+                `A ${record.instrument} trade with the same entry and exit time already exists. Resolve the duplicate before importing.`
+            );
+        }
+    }
+
     const transaction = database.transaction("trades", "readwrite");
 
-    await Promise.all(
-        records.map((record) => transaction.store.add(record as TradeRecord))
-    );
+    await Promise.all([
+        ...records.map((record) =>
+            transaction.store.add(record as TradeRecord)
+        ),
+        ...overwriteRecords.map((record) => transaction.store.put(record)),
+    ]);
     await transaction.done;
 
     notifyDataChanged();
 
-    return records.length;
+    return records.length + overwriteRecords.length;
 }
