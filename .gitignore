@@ -11,9 +11,16 @@ Thumbs.db
 # Frontend (React / Vite)
 #################################
 node_modules/
-frontend/dist/
-frontend/.vite/
+dist/
+dist-ssr/
+.vite/
+*.local
 *.tsbuildinfo
+
+#################################
+# Cloudflare Wrangler
+#################################
+.wrangler/
 
 #################################
 # Environment files

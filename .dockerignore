@@ -3,8 +3,9 @@
 .github
 node_modules
 **/node_modules
-frontend/dist
-frontend/.vite
+dist
+.vite
+.wrangler
 docs
 README.md
 Dockerfile

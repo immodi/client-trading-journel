@@ -11,10 +11,10 @@ WORKDIR /src
 RUN npm install --global pnpm@11
 
 # Install dependencies first so this layer is cached until the lockfile changes.
-COPY frontend/package.json frontend/pnpm-lock.yaml ./
+COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 
-COPY frontend/ ./
+COPY . ./
 RUN pnpm build
 
 # ---------------------------------------------------------------------------
@@ -23,7 +23,7 @@ RUN pnpm build
 # ---------------------------------------------------------------------------
 FROM nginx:alpine AS runtime
 
-COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /src/dist /usr/share/nginx/html
 
 EXPOSE 80

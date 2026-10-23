@@ -1,5 +1,5 @@
 # Cloudflare Pages deployment for the static Vite build.
-# Deploy from this directory with `pnpm build && pnpm exec wrangler pages deploy`.
+# Deploy from the repository root with `pnpm build && pnpm exec wrangler pages deploy`.
 # The Pages project name below must match the project in the Cloudflare dashboard.
 name = "trading-journal"
 pages_build_output_dir = "./dist"

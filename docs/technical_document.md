@@ -146,42 +146,41 @@ Node-based tests).
 
 ```text
 TradingJournal/
-├── frontend/
-│   ├── src/
-│   │   ├── db/
-│   │   │   ├── backup.ts(+test)
-│   │   │   ├── changeNotifications.ts
-│   │   │   ├── connection.ts
-│   │   │   ├── markets.ts
-│   │   │   ├── schema.ts
-│   │   │   ├── trades.ts
-│   │   │   └── journal.test.ts
-│   │   ├── hooks/
-│   │   │   ├── useBackup.ts
-│   │   │   ├── useMarketSelection.ts
-│   │   │   ├── useMarkets.ts
-│   │   │   ├── useTheme.ts
-│   │   │   └── useTrades.ts
-│   │   ├── lib/
-│   │   │   ├── analytics.ts(+test)
-│   │   │   ├── analyticsMetrics.test.ts
-│   │   │   ├── backup.ts(+test)
-│   │   │   ├── breakdowns.ts(+test)
-│   │   │   ├── timeAnalytics.ts(+test)
-│   │   │   ├── datetime.ts
-│   │   │   ├── errors.ts
-│   │   │   ├── format.ts
-│   │   │   ├── tradeImport.ts(+test)
-│   │   │   ├── tradeMath.ts(+test)
-│   │   │   └── validation.ts(+test)
-│   │   ├── components/   layout, dashboard, analytics, markets, trades, data, theme, ui
-│   │   ├── pages/        Dashboard, Analytics, Markets, Trades, Data, NotFound
-│   │   ├── router/       createBrowserRouter route table
-│   │   ├── types/        shared models
-│   │   ├── main.tsx
-│   │   └── style.css
-│   ├── nginx.conf        static hosting with SPA fallback
-│   └── package.json
+├── src/
+│   ├── db/
+│   │   ├── backup.ts(+test)
+│   │   ├── changeNotifications.ts
+│   │   ├── connection.ts
+│   │   ├── markets.ts
+│   │   ├── schema.ts
+│   │   ├── trades.ts
+│   │   └── journal.test.ts
+│   ├── hooks/
+│   │   ├── useBackup.ts
+│   │   ├── useMarketSelection.ts
+│   │   ├── useMarkets.ts
+│   │   ├── useTheme.ts
+│   │   └── useTrades.ts
+│   ├── lib/
+│   │   ├── analytics.ts(+test)
+│   │   ├── analyticsMetrics.test.ts
+│   │   ├── backup.ts(+test)
+│   │   ├── breakdowns.ts(+test)
+│   │   ├── timeAnalytics.ts(+test)
+│   │   ├── datetime.ts
+│   │   ├── errors.ts
+│   │   ├── format.ts
+│   │   ├── tradeImport.ts(+test)
+│   │   ├── tradeMath.ts(+test)
+│   │   └── validation.ts(+test)
+│   ├── components/   layout, dashboard, analytics, markets, trades, data, theme, ui
+│   ├── pages/        Dashboard, Analytics, Markets, Trades, Data, NotFound
+│   ├── router/       createBrowserRouter route table
+│   ├── types/        shared models
+│   ├── main.tsx
+│   └── style.css
+├── nginx.conf            static hosting with SPA fallback
+├── package.json
 ├── docs/
 ├── Dockerfile            build static SPA + serve with nginx
 ├── docker-compose.yml
@@ -558,7 +557,7 @@ pnpm build   tsc -b type-check, then Vite production build
 3. `pnpm lint`,
 4. `pnpm test`,
 5. `pnpm build`,
-6. upload `frontend/dist` as a build artifact.
+6. upload `dist` as a build artifact.
 
 ---
 
@@ -567,7 +566,6 @@ pnpm build   tsc -b type-check, then Vite production build
 ## Development
 
 ```bash
-cd frontend
 pnpm install
 pnpm dev          # http://localhost:5173
 ```
@@ -578,15 +576,14 @@ No API process or environment variables are required. There is no
 ## Production build
 
 ```bash
-cd frontend
 pnpm build
 ```
 
-Output: `frontend/dist` (HTML, hashed CSS/JS, fonts). Deploy it to any static
+Output: `dist` (HTML, hashed CSS/JS, fonts). Deploy it to any static
 host.
 
 **SPA fallback is required.** The host must serve `index.html` for unknown paths
-so `/trades` and `/markets` survive a hard refresh. `frontend/nginx.conf`
+so `/trades` and `/markets` survive a hard refresh. `nginx.conf`
 contains a minimal configuration:
 
 ```nginx

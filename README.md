@@ -134,14 +134,13 @@ src/types/        shared models
 ### Run locally
 
 ```bash
-cd frontend
 pnpm install
 pnpm dev
 ```
 
 Open <http://localhost:5173>. There is nothing else to start.
 
-From the repository root you can also use:
+You can also use the Makefile wrappers:
 
 ```bash
 make install
@@ -151,14 +150,13 @@ make dev
 ### Production build
 
 ```bash
-cd frontend
-pnpm build          # static files in frontend/dist
+pnpm build          # static files in dist
 pnpm preview        # serve the build locally
 ```
 
-Deploy `frontend/dist` to any static host. The host **must** fall back to
+Deploy `dist` to any static host. The host **must** fall back to
 `index.html` for client-side routes such as `/trades`; otherwise a hard refresh
-returns a 404. The included `frontend/nginx.conf` shows one way to do that.
+returns a 404. The included `nginx.conf` shows one way to do that.
 
 ## Docker
 
@@ -180,7 +178,6 @@ receives trade data.
 ## Testing
 
 ```bash
-cd frontend
 pnpm test           # Vitest: pure logic, validation, and IndexedDB data layer
 pnpm lint           # ESLint
 pnpm build          # tsc type-check + production build
@@ -212,17 +209,16 @@ Important consequences:
 ## Project structure
 
 ```text
-frontend/
-  src/
-    db/           IndexedDB connection, schema, markets & trades repositories
-    hooks/        query + mutation hooks and theme state
-    lib/          analytics, breakdowns, time analytics, validation, trade math, formatting, JSON import
-    components/   layout, dashboard, analytics, markets, trades, theme, UI primitives
-    pages/        Dashboard, Analytics, Markets, Trades, Not Found
-    router/       route configuration
-    types/        shared models
-  nginx.conf      static-host config with SPA fallback
-docs/             business requirements, technical design, entity diagram
+src/
+  db/           IndexedDB connection, schema, markets & trades repositories
+  hooks/        query + mutation hooks and theme state
+  lib/          analytics, breakdowns, time analytics, validation, trade math, formatting, JSON import
+  components/   layout, dashboard, analytics, markets, trades, theme, UI primitives
+  pages/        Dashboard, Analytics, Markets, Trades, Not Found
+  router/       route configuration
+  types/        shared models
+nginx.conf      static-host config with SPA fallback
+docs/           business requirements, technical design, entity diagram
 ```
 
 ## Documentation
