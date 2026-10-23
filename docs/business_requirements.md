@@ -262,7 +262,7 @@ The application never converts or combines amounts across currencies.
 
 ## 5.4 Analytics (Implemented)
 
-The analytics page provides a deeper review of a selected currency. It shall
+The analytics page provides a deeper review of a selected market. It shall
 display:
 
 * **Performance** — expectancy (average P/L per trade), median trade, payoff
@@ -281,11 +281,13 @@ display:
   period, best/worst day, week, and month, P/L by entry weekday, P/L by entry
   hour, and a monthly P/L heatmap.
 
-When the journal contains more than one currency, the page exposes a currency
-selector. Every monetary metric is calculated within the selected currency;
-amounts are never converted or summed across currencies. Day/week/month
-grouping uses the local exit date, while weekday and entry-hour grouping uses
-the local entry time.
+When the journal contains more than one market, the page exposes a market
+selector. Every monetary metric is calculated within the selected market;
+amounts are never converted or summed across currencies. The dashboard and
+analytics pages remember the last market opened (stored locally) so switching
+between them keeps the same market in focus. Day/week/month grouping uses the
+local exit date, while weekday and entry-hour grouping uses the local entry
+time.
 
 > **Planned:** R-multiple analytics (requires optional risk/stop fields),
 > MAE/MFE and slippage (requires optional price fields), and return metrics
@@ -347,13 +349,14 @@ searchable and filterable.
 
 ## Reviewing Performance (Implemented)
 
-1. Open the dashboard. It opens on **All markets**, showing currency-independent
-   metrics (total trades, overall win rate, and market/currency counts).
+1. Open the dashboard. It opens on the last market viewed (stored locally) or on
+   **All markets** when none was selected, showing currency-independent metrics
+   (total trades, overall win rate, and market/currency counts).
 2. Use the market selector to pick a market and see its net profit/loss, win
    rate, profit factor, average win/loss, total commission, and equity curve in
    that market's own currency.
 3. Open **Analytics** to review risk, streak, breakdown, rolling, and timing
-   metrics for a selected currency.
+   metrics for the same market.
 4. Open the **Trades** page to search, filter, and sort the underlying trades.
 5. Edit or delete a trade and watch the metrics update.
 

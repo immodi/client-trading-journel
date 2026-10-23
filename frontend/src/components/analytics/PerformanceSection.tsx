@@ -29,7 +29,7 @@ import { UnderwaterCurve } from "@/components/analytics/UnderwaterCurve";
 interface PerformanceSectionProps {
     stats: TradeStats;
     currency: string;
-    marketCount: number;
+    marketName: string;
 }
 
 function toneFor(value: number): "positive" | "negative" | "default" {
@@ -45,7 +45,7 @@ function formatRatio(value: number | null): string {
 export function PerformanceSection({
     stats,
     currency,
-    marketCount,
+    marketName,
 }: PerformanceSectionProps) {
     return (
         <section className="grid gap-4">
@@ -56,8 +56,7 @@ export function PerformanceSection({
                 <Badge variant="secondary">{currency}</Badge>
                 <span className="text-sm text-muted-foreground">
                     {stats.totalTrades}{" "}
-                    {stats.totalTrades === 1 ? "trade" : "trades"} across{" "}
-                    {marketCount} {marketCount === 1 ? "market" : "markets"}
+                    {stats.totalTrades === 1 ? "trade" : "trades"} in {marketName}
                 </span>
             </div>
 

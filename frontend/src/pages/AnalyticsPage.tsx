@@ -1,11 +1,8 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useTrades } from "@/hooks/useTrades";
-import {
-    calculateStats,
-    getCurrencySummaries,
-    normalizeCurrency,
-} from "@/lib/analytics";
+import { useMarketSelection } from "@/hooks/useMarketSelection";
+import { calculateStats, getMarketSummaries } from "@/lib/analytics";
 import {
     calculateDirectionStats,
     calculateDurationStats,
@@ -41,34 +38,25 @@ import { Skeleton } from "@/components/ui/skeleton";
 export default function AnalyticsPage() {
     const { data: trades = [], isLoading, isError, error } = useTrades();
 
-    const currencies = useMemo(() => getCurrencySummaries(trades), [trades]);
-    const [selectedCurrency, setSelectedCurrency] = useState<string | null>(null);
+    const { selection, setSelection } = useMarketSelection();
 
-    // Fall back to the most active currency if the selected one disappears.
-    const currency = useMemo(() => {
-        if (
-            selectedCurrency &&
-            currencies.some((entry) => entry.currency === selectedCurrency)
-        ) {
-            return selectedCurrency;
-        }
+    // Markets are derived from the loaded trades, which carry their market's
+    // name and currency. Analytics always operates on exactly one market, so
+    // monetary metrics stay within that market's currency.
+    const markets = useMemo(() => getMarketSummaries(trades), [trades]);
 
-        return currencies[0]?.currency ?? null;
-    }, [currencies, selectedCurrency]);
-
-    const filteredTrades = useMemo(
-        () =>
-            currency
-                ? trades.filter(
-                      (trade) => normalizeCurrency(trade.currency) === currency
-                  )
-                : [],
-        [trades, currency]
+    // Fall back to the first market when nothing is saved or the saved market
+    // no longer exists.
+    const market = useMemo(
+        () => markets.find((entry) => String(entry.id) === selection) ?? markets[0] ?? null,
+        [markets, selection]
     );
 
-    const marketCount = useMemo(
-        () => new Set(filteredTrades.map((trade) => trade.marketId)).size,
-        [filteredTrades]
+    const currency = market?.currency ?? null;
+
+    const filteredTrades = useMemo(
+        () => (market ? trades.filter((trade) => trade.marketId === market.id) : []),
+        [trades, market]
     );
 
     const analytics = useMemo(() => {
@@ -93,36 +81,37 @@ export default function AnalyticsPage() {
         [filteredTrades, rollingWindow]
     );
 
-    const currencyItems = useMemo(
+    // Base UI uses the items map to render the selected label in the trigger.
+    const marketItems = useMemo(
         () =>
             Object.fromEntries(
-                currencies.map((entry) => [
-                    entry.currency,
-                    `${entry.currency} · ${entry.tradeCount} trades`,
+                markets.map((entry) => [
+                    String(entry.id),
+                    `${entry.name} (${entry.currency})`,
                 ])
             ),
-        [currencies]
+        [markets]
     );
 
-    const currencySelector = (
+    const marketSelector = (
         <Select
-            items={currencyItems}
-            value={currency}
-            onValueChange={(value) =>
-                setSelectedCurrency(value === null ? null : String(value))
-            }
+            items={marketItems}
+            value={market ? String(market.id) : null}
+            onValueChange={(value) => {
+                if (value !== null) setSelection(String(value));
+            }}
         >
             <SelectTrigger
                 size="sm"
-                className="w-full sm:w-48"
-                aria-label="Select a currency"
+                className="w-full sm:w-56"
+                aria-label="Select a market"
             >
                 <SelectValue />
             </SelectTrigger>
             <SelectContent>
-                {currencies.map((entry) => (
-                    <SelectItem key={entry.currency} value={entry.currency}>
-                        {entry.currency} · {entry.tradeCount} trades
+                {markets.map((entry) => (
+                    <SelectItem key={entry.id} value={String(entry.id)}>
+                        {entry.name} ({entry.currency})
                     </SelectItem>
                 ))}
             </SelectContent>
@@ -157,7 +146,7 @@ export default function AnalyticsPage() {
         );
     }
 
-    if (trades.length === 0 || currency === null) {
+    if (trades.length === 0 || market === null || currency === null) {
         return (
             <div className="grid gap-6">
                 <PageHeader
@@ -183,14 +172,14 @@ export default function AnalyticsPage() {
         <div className="grid gap-8">
             <PageHeader
                 title="Analytics"
-                description="Deeper performance, risk, and timing breakdowns for your journal."
-                action={currencies.length > 1 ? currencySelector : undefined}
+                description="Deeper performance, risk, and timing breakdowns, one market at a time."
+                action={markets.length > 1 ? marketSelector : undefined}
             />
 
             <PerformanceSection
                 stats={analytics.stats}
                 currency={currency}
-                marketCount={marketCount}
+                marketName={market.name}
             />
 
             <RiskSection stats={analytics.stats} currency={currency} />

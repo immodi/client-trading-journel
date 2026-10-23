@@ -113,8 +113,10 @@ src/types/        shared models
   currency is reflected everywhere immediately.
 - A round trip is charged on both sides, so `commissionPerUnit` is the per-side
   rate × 2 and `commission = commissionPerUnit × quantity`.
-- Monetary dashboard and analytics metrics are computed per market or per
-  selected currency. Amounts in different currencies are never summed.
+- Monetary dashboard and analytics metrics are computed per market. Amounts in
+  different currencies are never summed.
+- The dashboard and analytics pages share the last opened market, so switching
+  between them keeps the same market in focus.
 
 ## Getting started
 
@@ -186,6 +188,7 @@ without a browser. `make check` runs lint, tests, and the build together.
 
 - Database name: **`trading-journal`** (IndexedDB)
 - Theme preference: **`trading-journal-theme`** (`localStorage`)
+- Last opened market: **`trading-journal-last-market`** (`localStorage`)
 
 Important consequences:
 

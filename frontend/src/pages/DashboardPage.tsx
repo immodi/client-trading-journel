@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import {
     Activity,
@@ -10,6 +10,7 @@ import {
     TrendingUp,
 } from "lucide-react";
 import { useTrades } from "@/hooks/useTrades";
+import { ALL_MARKETS, useMarketSelection } from "@/hooks/useMarketSelection";
 import {
     calculateOverallStats,
     calculateStatsForMarket,
@@ -55,17 +56,17 @@ import {
     TableRow,
 } from "@/components/ui/table";
 
-const ALL_MARKETS = "all";
-
 export default function DashboardPage() {
     const { data: trades = [], isLoading, isError, error } = useTrades();
 
-    const [selection, setSelection] = useState<string>(ALL_MARKETS);
+    const { selection, setSelection } = useMarketSelection();
 
     // Markets are derived from the loaded trades (which carry their market's
     // name and currency), so the selector needs no separate markets query.
     const markets = useMemo(() => getMarketSummaries(trades), [trades]);
 
+    // A saved market that no longer exists (or was never selected) falls back
+    // to the currency-independent "All markets" view.
     const activeMarket = useMemo(
         () => markets.find((market) => String(market.id) === selection) ?? null,
         [markets, selection]
@@ -135,7 +136,9 @@ export default function DashboardPage() {
         <Select
             items={marketItems}
             value={activeMarket ? String(activeMarket.id) : ALL_MARKETS}
-            onValueChange={(value) => setSelection(value === null ? ALL_MARKETS : String(value))}
+            onValueChange={(value) =>
+                setSelection(value === null ? ALL_MARKETS : String(value))
+            }
         >
             <SelectTrigger
                 size="sm"

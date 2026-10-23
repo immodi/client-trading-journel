@@ -99,7 +99,7 @@ database, no authentication, and no network request for journal data.
 │    ├── markets                                              │
 │    └── trades                                               │
 │                                                             │
-│  localStorage: theme preference only                        │
+│  localStorage: theme + last market                          │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -392,13 +392,16 @@ theme toggle). There is no login route, auth provider, or route guard.
   retry once. Mutations always read/write IndexedDB directly; the cache is only a
   rendering optimization.
 * **ThemeProvider / useTheme** store the theme in React state and localStorage.
+* **useMarketSelection** stores the last market opened under
+  `trading-journal-last-market` in localStorage. The dashboard and analytics
+  pages share it so the selected market survives reloads and page switches.
 
 ## Pages
 
-* **Dashboard** — derives market summaries from loaded trades, shows an "All
-  markets" or single-market panel, stat cards, equity curve, and the five most
-  recent trades.
-* **Analytics** — selects one currency (or uses the only currency), then shows
+* **Dashboard** — derives market summaries from loaded trades, restores the last
+  opened market, shows an "All markets" or single-market panel, stat cards,
+  equity curve, and the five most recent trades.
+* **Analytics** — selects one market (or uses the saved/first market), then shows
   performance/risk cards, equity and underwater curves, profit concentration,
   direction/instrument/commission/hold-time breakdowns, P/L distribution,
   rolling 20/50-trade metrics, consistency and best/worst periods, weekday and
@@ -411,8 +414,8 @@ theme toggle). There is no login route, auth provider, or route guard.
 ## Analytics
 
 Pure functions over the loaded trade array. Monetary functions assume every
-trade passed in shares one currency; the page filters by currency before calling
-them.
+trade passed in shares one currency; the page filters by market (each market has
+one currency) before calling them.
 
 ### Core metrics (`src/lib/analytics.ts`)
 
@@ -451,7 +454,7 @@ them.
 
 ### Analytics UI
 
-`AnalyticsPage` derives one `analytics` object per selected currency, then
+`AnalyticsPage` derives one `analytics` object per selected market, then
 renders `PerformanceSection`, `RiskSection`, `BreakdownSection`,
 `RollingSection`, and `TimingSection`. Chart components are dependency-free SVG
 or CSS (`EquityCurve`, `UnderwaterCurve`, `PnlBarChart`,
@@ -592,7 +595,8 @@ make clean     remove dist and node_modules
 * There are no accounts, cookies for authentication, or analytics/telemetry.
 * Anyone with access to the browser profile can read the journal. The app is
   single-user and intentionally has no access control.
-* The theme preference is the only value written to localStorage.
+* The theme preference and the last opened market are the only values written
+  to localStorage.
 
 ## Persistence
 
